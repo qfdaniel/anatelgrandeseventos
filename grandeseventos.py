@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- FUNÇÃO JS PARA FORÇAR FECHAMENTO DA SIDEBAR ---
+# --- FUNÇÃO JS PARA FORÇAR FECHAMENTO DA SIDEBAR (USADA SÓ NA HOME) ---
 def fechar_sidebar_force():
     js = """
     <script>
@@ -67,16 +67,35 @@ if st.session_state.escolha_evento == "Selecione o Evento...":
             background-image: linear-gradient(rgba(255, 253, 231, 0.6), rgba(255, 253, 231, 0.6)), url("data:image/jpg;base64,{bin_str}");
             background-size: cover;
             background-attachment: fixed;
+            background-position: center;
         """
     else:
         bg_css = "background-color: #FFFDE7;"
     
+    # CSS Específico para Centralização da Home
     extra_css = """
-    div[data-testid="stImage"] {
-        display: flex; justify-content: center; align-items: center; width: 100%; margin: 0 auto;
+    /* Centraliza Imagens e Dropdown na Home */
+    div[data-testid="column"]:nth-of-type(2) {
+        display: flex;
+        flex-direction: column;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        padding-top: 10vh; 
     }
-    div[data-testid="stImage"] img { margin: 0 auto !important; display: block; }
-    .stSelectbox div[data-baseweb="select"] { margin: 0 auto; }
+    div[data-testid="stImage"] {
+        margin: 0 auto !important;
+        padding-bottom: 20px;
+    }
+    div[data-testid="stImage"] img {
+        margin: 0 auto !important;
+        display: block;
+        max-width: 250px; 
+    }
+    .stSelectbox {
+        width: 100% !important;
+        max-width: 500px; 
+    }
     """
 else:
     # DASHBOARD
@@ -91,8 +110,8 @@ AMARELO_ANATEL = "#FFCC00"
 VERDE_OK = "#2E7D32"       
 VERMELHO_ALERTA = "#CC0000"
 
-# PALETA VIRIDIS REVERSA
-VIRIDIS_REVERSED = px.colors.sequential.Viridis_r
+# --- PALETA CUSTOMIZADA ---
+PALETA_CUSTOM = ["#B8DE29"] + px.colors.sequential.Viridis_r[5:]
 
 # --- CSS GERAL ---
 st.markdown(f"""
@@ -101,26 +120,62 @@ st.markdown(f"""
     
     {extra_css}
 
-    /* REDUÇÃO DRÁSTICA DO ESPAÇO SUPERIOR */
-    .main .block-container {{
-        padding-top: 1rem !important;
-        padding-bottom: 0rem !important;
+    /* --- CORREÇÃO DO HEADER/SIDEBAR --- */
+    
+    /* 1. Header Transparente mas VISÍVEL (para o botão da sidebar aparecer) */
+    header[data-testid="stHeader"] {{
+        background-color: transparent !important;
+        visibility: visible !important; 
+    }}
+    
+    /* 2. Remove decoração colorida do topo */
+    div[data-testid="stDecoration"] {{
+        visibility: hidden;
+        height: 0px;
+    }}
+    
+    /* 3. Remove botões de deploy/menu do lado direito (limpeza) */
+    .stAppDeployButton, [data-testid="stHeaderActionElements"] {{
+        display: none !important;
     }}
 
-    [data-testid="stHeaderActionElements"] {{ display: none !important; }}
+    /* 4. AJUSTE DE ESPAÇAMENTO DO TOPO */
+    /* Deixamos um pequeno padding-top para o título não ficar DEBAIXO do botão do menu */
+    .main .block-container {{
+        padding-top: 2rem !important; 
+        padding-bottom: 0rem !important;
+        margin-top: 0rem !important;
+    }}
+
+    /* ESCONDER IFRAMES DE SCRIPT */
+    iframe[title="st.iframe"] {{
+        display: none !important;
+        height: 0 !important;
+    }}
+    div[data-testid="stIFrame"] {{
+        height: 0 !important;
+        margin: 0 !important;
+    }}
 
     .welcome-text {{
         color: {AZUL_ANATEL}; font-size: 2.2em; font-weight: bold;
         margin-top: 10px; margin-bottom: 15px; text-align: center;
-        text-shadow: 1px 1px 2px white; white-space: nowrap; width: 100%; display: block;
+        text-shadow: 1px 1px 2px white; width: 100%; display: block;
     }}
 
-    h1, h2, h3 {{
+    h1 {{
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
+        text-align: center;
+        margin-top: 0px !important; 
+        padding-top: 0px !important; /* Ajustado */
+        margin-bottom: 10px !important;
+    }}
+    
+    h2, h3 {{
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
         text-align: center;
     }}
     
-    /* Subtítulos à esquerda */
     h3 {{ text-align: left !important; }}
 
     .kpi-box {{ 
@@ -129,14 +184,15 @@ st.markdown(f"""
         display: flex; flex-direction: column; justify-content: center; position: relative;
     }}
     
-    /* FONTE DO TÍTULO DO KPI AUMENTADA (+0.05) */
     .kpi-label {{ 
         font-weight: bold; font-size: 1.10em; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); 
         margin-bottom: 8px; line-height: 1.2;
     }}
     
     .kpi-value {{ 
-        font-weight: bold; font-size: 2.6em; line-height: 1; text-shadow: none; color: #000000 !important; 
+        font-weight: bold; 
+        font-size: 2.7em; 
+        line-height: 1; text-shadow: none; color: #000000 !important; 
     }}
     
     .info-icon-container {{ position: absolute; bottom: 8px; right: 8px; }}
@@ -146,10 +202,12 @@ st.markdown(f"""
         color: #1A311F; font-size: 11px; font-weight: bold; cursor: pointer;
     }}
     .tooltip-text {{
-        visibility: hidden; width: 200px; background-color: #333; color: #fff;
-        text-align: center; border-radius: 6px; padding: 5px;
-        position: absolute; z-index: 1; bottom: 125%; left: 50%;
-        margin-left: -100px; opacity: 0; transition: opacity 0.3s; font-size: 0.8em; font-weight: normal;
+        visibility: hidden; width: 240px; background-color: #333; color: #fff;
+        text-align: center; border-radius: 6px; padding: 8px;
+        position: absolute; z-index: 999; bottom: 130%; left: 50%;
+        margin-left: -120px; opacity: 0; transition: opacity 0.3s;
+        font-size: 0.85em; font-weight: normal; white-space: normal !important; line-height: 1.4;
+        box-shadow: 0px 4px 8px rgba(0,0,0,0.3);
     }}
     .info-icon-container:hover .tooltip-text {{ visibility: visible; opacity: 1; }}
 
@@ -162,7 +220,6 @@ st.markdown(f"""
         border-top: 1px solid rgba(49, 51, 63, 0.2);
     }}
 
-    /* BOTÃO EXPORTAR ALINHADO À DIREITA */
     .stDownloadButton {{ display: flex; justify-content: flex-end; width: 100%; }}
     .stDownloadButton > button {{ margin-left: auto; }}
     .stDownloadButton > button:hover {{
@@ -243,10 +300,11 @@ opcoes_menu = ["Selecione o Evento..."] + list(dict_eventos.keys())
 if st.session_state.escolha_evento == "Selecione o Evento...":
     fechar_sidebar_force()
     
-    c_esq, c_center, c_dir = st.columns([0.36, 0.28, 0.36])
+    # Ajuste de layout para melhor centralização (1 | 2 | 1)
+    c_esq, c_center, c_dir = st.columns([1, 2, 1])
     
     with c_center:
-        st.image("logo.png", width=180)
+        st.image("logo.png", width=200) 
         st.markdown(f'<div class="welcome-text">Monitoração do Espectro - Grandes Eventos 2026</div>', unsafe_allow_html=True)
         escolha = st.selectbox("Escolha o evento", opcoes_menu, key="seletor_central", label_visibility="collapsed")
         
@@ -257,11 +315,12 @@ if st.session_state.escolha_evento == "Selecione o Evento...":
 
 # --- DASHBOARD ATIVO ---
 else:
+    # Lógica corrigida: Só força o fechamento se houver um trigger específico (ex: vindo da Home)
     if st.session_state.get("trigger_close_sidebar", False):
         fechar_sidebar_force()
         st.session_state.trigger_close_sidebar = False
     
-    fechar_sidebar_force()
+    # REMOVIDO: fechar_sidebar_force() <- Isso impedia você de abrir a sidebar manualmente
 
     evento_nome = st.session_state.escolha_evento
     dados_base = carregar_dados_base(dict_eventos[evento_nome])
@@ -354,12 +413,11 @@ else:
             if st.button("🔄 Sincronizar", use_container_width=True): 
                 st.cache_data.clear(); st.rerun()
 
-        st.markdown(f"<h1 style='text-align: center; color: {AZUL_ANATEL};'>Monitoração do Espectro: {evento_nome}</h1>", unsafe_allow_html=True)
+        st.markdown(f"<h1 style='color: {AZUL_ANATEL};'>Monitoração do Espectro: {evento_nome}</h1>", unsafe_allow_html=True)
         st.markdown("---")
 
         k1, k2, k3, k4, k5, k6 = st.columns(6)
         
-        # AJUSTE NO TÍTULO DO KPI
         pend = (df_f['Situação'].str.contains("Pendente", na=False)).sum() if 'Situação' in df_f.columns else 0
         nao_licenciadas = (df_f['Licenciada?'].str.upper().str.contains("NÃO", na=False)).sum() if 'Licenciada?' in df_f.columns else 0
         
@@ -369,12 +427,12 @@ else:
         g_vermelho = "linear-gradient(135deg, #DF1B1D 0%, #E85C5D 100%)"
 
         metrics = [
-            ("Emissões verificadas", len(df_f), g_verde, "Total de emissões verificadas..."), 
-            ("Solicitações UTE", ute_total, g_azul, "Total de frequências solicitadas..."), 
-            ("Emissões pendentes", pend, g_amarelo, "Total de emissões aguardando..."), # TÍTULO ALTERADO
-            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas..."), 
-            ("BSR (Jammers)", jam, g_vermelho, "Contagem total de BSRs/Jammers..."), 
-            ("ERBs Fake", erb, g_vermelho, "Contagem total de ERBs Fake...")
+            ("Emissões verificadas", len(df_f), g_verde, "Total de emissões verificadas, conforme os filtros aplicados (padrão: 'todas')."), 
+            ("Solicitações UTE", ute_total, g_azul, "Total de frequências solicitadas para Uso Temporário do Espectro no evento"), 
+            ("Emissões pendentes", pend, g_amarelo, "Total de emissões aguardando alguma identificação/verificação (não afetado por filtros)."),
+            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas (Total de emissões não licenciadas considerando os filtros aplicados)."), 
+            ("BSR (Jammers)", jam, g_vermelho, "Contagem total de BSRs/Jammers identificados."), 
+            ("ERBs Fake", erb, g_vermelho, "Contagem total de ERBs Fake identificadas.")
         ]
         
         for i, (lab, val, grad, tooltip) in enumerate(metrics):
@@ -396,11 +454,15 @@ else:
             
             with c1:
                 st.subheader("Emissões por Estação")
-                fig1 = px.treemap(df_f, path=['Estação_Origem'], color_discrete_sequence=VIRIDIS_REVERSED)
+                df_tree = df_f['Estação_Origem'].value_counts().reset_index()
+                df_tree.columns = ['Estação', 'Qtd']
+                df_tree['Label'] = df_tree.apply(lambda x: f"{x['Estação']} ({x['Qtd']})", axis=1)
+                
+                fig1 = px.treemap(df_tree, path=['Label'], values='Qtd', color_discrete_sequence=PALETA_CUSTOM)
                 fig1.update_layout(bg_l); st.plotly_chart(fig1, use_container_width=True)
             with c2:
                 st.subheader("Emissões por Faixa")
-                fig2 = px.pie(df_f, names=col_fx, hole=0.4, color_discrete_sequence=VIRIDIS_REVERSED)
+                fig2 = px.pie(df_f, names=col_fx, hole=0.4, color_discrete_sequence=PALETA_CUSTOM)
                 fig2.update_traces(textposition='inside', textinfo='label+percent')
                 fig2.update_layout(bg_l, showlegend=False); st.plotly_chart(fig2, use_container_width=True)
             with c3:
@@ -409,12 +471,13 @@ else:
                 d_tp.columns = ['Tipo', 'Qtd']
                 d_tp['Label'] = d_tp.apply(lambda x: f"{x['Tipo']} ({x['Qtd']})", axis=1)
                 
-                # GRÁFICO BARRA SEM ESCALA
-                fig3 = px.bar(d_tp, y='Tipo', x='Qtd', orientation='h', color='Tipo', color_discrete_sequence=VIRIDIS_REVERSED, text='Label')
+                fig3 = px.bar(d_tp, y='Tipo', x='Qtd', orientation='h', 
+                              color='Tipo', 
+                              color_discrete_sequence=PALETA_CUSTOM, 
+                              text='Label')
                 fig3.update_traces(textposition='auto')
                 fig3.update_layout(bg_l, showlegend=False)
                 fig3.update_yaxes(showticklabels=False)
-                # REMOÇÃO DA ESCALA INFERIOR (EIXO X)
                 fig3.update_xaxes(visible=False)
                 st.plotly_chart(fig3, use_container_width=True)
 
@@ -454,17 +517,15 @@ else:
             centro_lat = df_coords['lat'].mean()
             centro_lon = df_coords['lon'].mean()
             
-            # MAPA COM SCATTER_MAP
             fig_map = px.scatter_map(
                 df_coords, 
                 lat="lat", 
                 lon="lon", 
-                text="Estação", # Nome da estação
+                text="Estação", 
                 hover_name="Estação", 
                 color_discrete_sequence=[VERMELHO_ALERTA], 
                 zoom=12
             )
-            # CONFIGURAÇÃO DE TEXTO DO MAPA (NEGRITO E VISÍVEL)
             fig_map.update_traces(
                 textposition='top center',
                 textfont=dict(family="Arial Black", size=12, color="black", weight="bold"),
