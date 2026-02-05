@@ -72,29 +72,56 @@ if st.session_state.escolha_evento == "Selecione o Evento...":
     else:
         bg_css = "background-color: #FFFDE7;"
     
-    # CSS Específico para Centralização da Home
+    # CSS CORRIGIDO PARA CENTRALIZAR TUDO E SEGURAR O TEXTO EM 1 LINHA
     extra_css = """
-    /* Centraliza Imagens e Dropdown na Home */
+    /* Centraliza o container da coluna do meio */
     div[data-testid="column"]:nth-of-type(2) {
         display: flex;
         flex-direction: column;
-        align-items: center !important;
         justify-content: center !important;
+        align-items: center !important;
         text-align: center !important;
-        padding-top: 10vh; 
+        padding-top: 15vh; 
     }
+    
+    /* Força a imagem a centralizar */
     div[data-testid="stImage"] {
-        margin: 0 auto !important;
-        padding-bottom: 20px;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin-bottom: 20px !important;
     }
-    div[data-testid="stImage"] img {
+    
+    div[data-testid="stImage"] > img {
+        object-fit: contain;
         margin: 0 auto !important;
-        display: block;
-        max-width: 250px; 
     }
+
+    /* Centraliza o seletor */
     .stSelectbox {
         width: 100% !important;
         max-width: 500px; 
+        margin: 0 auto !important; 
+    }
+    
+    /* Esconde o label do selectbox para não ocupar espaço */
+    div[data-testid="stSelectbox"] > label {
+        display: none; 
+    }
+    
+    /* Texto em uma linha só */
+    .welcome-text {
+        color: #003366; 
+        font-size: 2.2em; 
+        font-weight: bold;
+        margin-top: 10px; 
+        margin-bottom: 25px; 
+        text-align: center;
+        text-shadow: 1px 1px 2px white; 
+        width: 100%; 
+        display: block;
+        white-space: nowrap !important; /* <--- O segredo para não quebrar linha */
     }
     """
 else:
@@ -122,10 +149,11 @@ st.markdown(f"""
 
     /* --- CORREÇÃO DO HEADER/SIDEBAR --- */
     
-    /* 1. Header Transparente mas VISÍVEL (para o botão da sidebar aparecer) */
+    /* 1. Header Transparente mas VISÍVEL */
     header[data-testid="stHeader"] {{
         background-color: transparent !important;
         visibility: visible !important; 
+        height: 0px !important; /* Força altura zero no header nativo para não empurrar nada */
     }}
     
     /* 2. Remove decoração colorida do topo */
@@ -134,17 +162,40 @@ st.markdown(f"""
         height: 0px;
     }}
     
-    /* 3. Remove botões de deploy/menu do lado direito (limpeza) */
+    /* 3. Remove botões de deploy/menu do lado direito */
     .stAppDeployButton, [data-testid="stHeaderActionElements"] {{
         display: none !important;
     }}
 
-    /* 4. AJUSTE DE ESPAÇAMENTO DO TOPO */
-    /* Deixamos um pequeno padding-top para o título não ficar DEBAIXO do botão do menu */
+    /* 4. AJUSTE DE ESPAÇAMENTO DO TOPO (O PONTO CRÍTICO) */
     .main .block-container {{
-        padding-top: 2rem !important; 
+        padding-top: 0px !important; 
         padding-bottom: 0rem !important;
         margin-top: 0rem !important;
+    }}
+
+    /* ESCONDER IFRAMES DE SCRIPT */
+    iframe[title="st.iframe"] {{
+        display: none !important;
+        height: 0 !important;
+    }}
+    div[data-testid="stIFrame"] {{
+        height: 0 !important;
+        margin: 0 !important;
+    }}
+
+    .welcome-text {{
+        color: {AZUL_ANATEL}; font-size: 2.2em; font-weight: bold;
+        margin-top: 0px; margin-bottom: 15px; text-align: center;
+        text-shadow: 1px 1px 2px white; width: 100%; display: block;
+    }}
+
+    h1 {{
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
+        text-align: center;
+        margin-top: -25px !important; 
+        padding-top: 0px !important; 
+        margin-bottom: 5px !important;
     }}
 
     /* ESCONDER IFRAMES DE SCRIPT */
@@ -167,8 +218,8 @@ st.markdown(f"""
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
         text-align: center;
         margin-top: 0px !important; 
-        padding-top: 0px !important; /* Ajustado */
-        margin-bottom: 10px !important;
+        padding-top: 0px !important; 
+        margin-bottom: 5px !important; /* Reduzido também a margem inferior */
     }}
     
     h2, h3 {{
@@ -234,7 +285,7 @@ def tratar_colunas_duplicadas(df):
     df = df.loc[:, (df.columns != "") & (df.columns.notna())]
     return df
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def obter_cliente_gspread():
     try:
         info = st.secrets["gcp_service_account"]
@@ -250,40 +301,113 @@ def buscar_planilhas():
     arquivos = client.list_spreadsheet_files()
     return {a['name'].replace("Monitoração - ", ""): a['name'] for a in arquivos if "Monitoração" in a['name']}
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=60, show_spinner=False)
 def carregar_dados_base(nome_planilha):
     try:
         client = obter_cliente_gspread()
         planilha = client.open(nome_planilha)
+        
+        # --- CARREGA DADOS GERAIS (PAINEL) ---
         aba_p = planilha.worksheet("PAINEL")
         dados_p = aba_p.get_all_values()
-        jam = dados_p[1][20] if len(dados_p) > 1 and len(dados_p[1]) > 20 else 0
-        erb = dados_p[1][21] if len(dados_p) > 1 and len(dados_p[1]) > 21 else 0
+        
+        try: jam = dados_p[1][20] if len(dados_p) > 1 else 0
+        except: jam = 0
+        try: erb = dados_p[1][21] if len(dados_p) > 1 else 0
+        except: erb = 0
 
         lista_dfs = []
         coord_data = []
+        ABAS_IGNORAR = ["PAINEL", "Escala", "Tabela UTE", "LISTAS"]
+
         for aba in planilha.worksheets():
-            if aba.title not in ["PAINEL", "Escala", "Tabela UTE", "LISTAS"]:
+            if aba.title not in ABAS_IGNORAR:
+                # 1. Tenta capturar Coordenadas (AE4/AE5)
                 try:
-                    lat_v = aba.cell(4, 31).value
-                    lon_v = aba.cell(5, 31).value
+                    lat_v = aba.cell(4, 31).value 
+                    lon_v = aba.cell(5, 31).value 
                     if lat_v and lon_v:
-                        coord_data.append({"Estação": aba.title, "lat": float(str(lat_v).replace(',', '.')), "lon": float(str(lon_v).replace(',', '.'))})
+                        coord_data.append({
+                            "Estação": aba.title, 
+                            "lat": float(str(lat_v).replace(',', '.')), 
+                            "lon": float(str(lon_v).replace(',', '.'))
+                        })
                 except: pass
+                
+                # 2. Carrega Dados Brutos
                 raw = aba.get_all_values()
-                if len(raw) >= 3:
-                    temp = pd.DataFrame(raw[2:], columns=raw[1])
-                    temp = temp.rename(columns={'DD/MM/AAAA': 'Data', 'HH:mm': 'Hora'})
-                    temp = tratar_colunas_duplicadas(temp)
-                    if 'Fiscal' in temp.columns: temp = temp[temp['Fiscal'].str.strip() != ""]
-                    if not temp.empty:
-                        temp['Estação_Origem'] = aba.title
-                        lista_dfs.append(temp)
+                if not raw: continue
+
+                # --- PASSO 1: LOCALIZAR CABEÇALHO USANDO 'FISCAL' COMO ÂNCORA ---
+                header_idx = -1
+                start_col_idx = 0
+                
+                for i, row in enumerate(raw[:15]):
+                    row_txt = [str(c).strip().lower() for c in row]
+                    # 'Fiscal' é a chave para encontrar o início da tabela real
+                    if "fiscal" in row_txt:
+                        header_idx = i
+                        # A tabela começa 2 colunas antes de 'Fiscal' (ID e Estação)
+                        idx_fiscal = row_txt.index("fiscal")
+                        start_col_idx = max(0, idx_fiscal - 2)
+                        break
+                
+                if header_idx == -1 or len(raw) <= header_idx + 1:
+                    continue
+
+                # Recorta a planilha a partir da coluna identificada
+                headers_raw = raw[header_idx][start_col_idx:]
+                data_rows = [r[start_col_idx:] for r in raw[header_idx+1:]]
+                
+                # Trata nomes de colunas duplicados ou vazios
+                headers = []
+                seen = {}
+                for h in headers_raw:
+                    h_clean = str(h).strip()
+                    if not h_clean: h_clean = "col_vazia"
+                    if h_clean in seen:
+                        seen[h_clean] += 1
+                        h_clean = f"{h_clean}_{seen[h_clean]}"
+                    else: seen[h_clean] = 0
+                    headers.append(h_clean)
+
+                temp = pd.DataFrame(data_rows, columns=headers)
+
+                # --- PASSO 2: PADRONIZAÇÃO E LIMPEZA ---
+                mapa_colunas = {
+                    'DD/MM/AAAA': 'Data', 'DD/MM': 'Data', 'Dia': 'Data', 
+                    'Data da Ocorrência': 'Data', 'HH:mm': 'Hora', 'Hora': 'Hora',
+                    'Frequência Central (MHz)': 'Frequência (MHz)',
+                    'Status': 'Situação'
+                }
+                temp = temp.rename(columns=mapa_colunas)
+                
+                # Garante coluna Data
+                if 'Data' not in temp.columns:
+                    col_data = next((c for c in temp.columns if 'data' in str(c).lower()), None)
+                    if col_data: temp = temp.rename(columns={col_data: 'Data'})
+
+                # Filtro: Remove linhas onde a Frequência está vazia (ignora o lixo da planilha)
+                col_f = next((c for c in temp.columns if "freq" in str(c).lower()), None)
+                if col_f:
+                    temp = temp[temp[col_f].astype(str).str.strip() != ""]
+
+                # Limpa colunas duplicadas ou inúteis
+                temp = tratar_colunas_duplicadas(temp)
+                
+                if not temp.empty:
+                    temp['Estação_Origem'] = aba.title
+                    lista_dfs.append(temp)
+                        
         df_total = pd.concat(lista_dfs, ignore_index=True, sort=False).fillna("") if lista_dfs else pd.DataFrame()
         df_coords = pd.DataFrame(coord_data)
-        ute_total = len(planilha.worksheet("Tabela UTE").get_all_values()) - 1
+        
+        try: ute_total = len(planilha.worksheet("Tabela UTE").get_all_values()) - 1
+        except: ute_total = 0
+            
         return df_total, jam, erb, ute_total, df_coords
-    except: return None
+    except Exception:
+        return None
 
 # --- FUNÇÃO LIMPAR FILTROS ---
 def limpar_filtros():
@@ -294,24 +418,48 @@ def limpar_filtros():
 
 # --- FLUXO PRINCIPAL ---
 dict_eventos = buscar_planilhas()
+# Opções para o menu
 opcoes_menu = ["Selecione o Evento..."] + list(dict_eventos.keys())
+
+# --- CALLBACK PARA EVITAR DUPLICAÇÃO ---
+def ao_selecionar_evento():
+    """Executado IMEDIATAMENTE ao mudar o selectbox, antes de redesenhar a tela."""
+    selecao = st.session_state.seletor_central
+    if selecao != "Selecione o Evento...":
+        st.session_state.escolha_evento = selecao
+        st.session_state.trigger_close_sidebar = True
+        # O Streamlit fará o rerun automaticamente após terminar este callback
 
 # --- TELA INICIAL ---
 if st.session_state.escolha_evento == "Selecione o Evento...":
     fechar_sidebar_force()
     
-    # Ajuste de layout para melhor centralização (1 | 2 | 1)
-    c_esq, c_center, c_dir = st.columns([1, 2, 1])
+    # Aumentei a coluna do meio (4) para caber o texto longo
+    c_esq, c_center, c_dir = st.columns([1, 4, 1])
     
     with c_center:
-        st.image("logo.png", width=200) 
+        b64_logo = get_base64_of_bin_file("logo.png")
+        if b64_logo:
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+                    <img src="data:image/png;base64,{b64_logo}" width="220">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            st.image("logo.png", width=220) 
         st.markdown(f'<div class="welcome-text">Monitoração do Espectro - Grandes Eventos 2026</div>', unsafe_allow_html=True)
-        escolha = st.selectbox("Escolha o evento", opcoes_menu, key="seletor_central", label_visibility="collapsed")
         
-        if escolha != "Selecione o Evento...":
-            st.session_state.escolha_evento = escolha
-            st.session_state.trigger_close_sidebar = True
-            st.rerun()
+        st.selectbox(
+            "Escolha o evento", 
+            opcoes_menu, 
+            key="seletor_central", 
+            label_visibility="collapsed",
+            on_change=ao_selecionar_evento 
+        )
+        # Nota: Removemos o bloco 'if escolha != ... st.rerun()' pois o callback já resolveu.
 
 # --- DASHBOARD ATIVO ---
 else:
@@ -485,13 +633,20 @@ else:
         col_t, col_b = st.columns([0.8, 0.2])
         with col_t: st.subheader("Histórico Consolidado")
         
+        # Remove colunas indesejadas explícitas primeiro
         cols_drop = ["Alguém mais ciente?", "Ocorrência (Observações)", "Ocorrência (observações)", "Ocorrência (obsevações)"]
         df_grid = df_f.drop(columns=[c for c in cols_drop if c in df_f.columns])
         
+        # Ajusta valores de UTE
         if 'UTE?' in df_grid.columns:
             df_grid['UTE?'] = df_grid['UTE?'].astype(str).str.upper().str.strip().map({'TRUE': 'Sim', 'FALSE': 'Não', 'SIM': 'Sim', 'NÃO': 'Não', '': ''}).fillna(df_grid['UTE?'])
+        
+        # --- CORREÇÃO: CORTAR COLUNAS APÓS "Situação" ---
         if 'Situação' in df_grid.columns:
-            df_grid = df_grid.iloc[:, :df_grid.columns.get_loc('Situação') + 1]
+            # Encontra o índice numérico da coluna Situação
+            idx_situ = df_grid.columns.get_loc('Situação')
+            # Fatia o dataframe: pega todas as linhas, e colunas do início (0) até Situação (idx_situ + 1)
+            df_grid = df_grid.iloc[:, :idx_situ + 1]
 
         with col_b:
             buf = io.BytesIO()
