@@ -10,12 +10,19 @@ import io
 import base64
 import time
 
+def ao_selecionar_evento():
+    """Executado IMEDIATAMENTE ao mudar o seletor central."""
+    if st.session_state.seletor_central:
+        st.session_state.escolha_evento = st.session_state.seletor_central
+        st.session_state.trigger_close_sidebar = True
+
 # --- CORREÇÃO PANDAS 2.0 ---
 pd.Series.iteritems = pd.Series.items
 
 # --- 0. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Monitoração - Grandes Eventos", 
+    page_title="Painel Grandes Eventos", 
+    page_icon="logo.png", # Define o ícone da aba como o seu arquivo logo.png
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -418,48 +425,44 @@ def limpar_filtros():
 
 # --- FLUXO PRINCIPAL ---
 dict_eventos = buscar_planilhas()
-# Opções para o menu
-opcoes_menu = ["Selecione o Evento..."] + list(dict_eventos.keys())
-
-# --- CALLBACK PARA EVITAR DUPLICAÇÃO ---
-def ao_selecionar_evento():
-    """Executado IMEDIATAMENTE ao mudar o selectbox, antes de redesenhar a tela."""
-    selecao = st.session_state.seletor_central
-    if selecao != "Selecione o Evento...":
-        st.session_state.escolha_evento = selecao
-        st.session_state.trigger_close_sidebar = True
-        # O Streamlit fará o rerun automaticamente após terminar este callback
+opcoes_menu = list(dict_eventos.keys()) # Apenas os nomes reais dos eventos
 
 # --- TELA INICIAL ---
 if st.session_state.escolha_evento == "Selecione o Evento...":
     fechar_sidebar_force()
     
-    # Aumentei a coluna do meio (4) para caber o texto longo
     c_esq, c_center, c_dir = st.columns([1, 4, 1])
     
     with c_center:
-        b64_logo = get_base64_of_bin_file("logo.png")
-        if b64_logo:
-            st.markdown(
-                f"""
-                <div style="display: flex; justify-content: center; margin-bottom: 10px;">
-                    <img src="data:image/png;base64,{b64_logo}" width="220">
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.image("logo.png", width=220) 
-        st.markdown(f'<div class="welcome-text">Monitoração do Espectro - Grandes Eventos 2026</div>', unsafe_allow_html=True)
+        placeholder_container = st.empty() 
         
-        st.selectbox(
-            "Escolha o evento", 
-            opcoes_menu, 
-            key="seletor_central", 
-            label_visibility="collapsed",
-            on_change=ao_selecionar_evento 
-        )
-        # Nota: Removemos o bloco 'if escolha != ... st.rerun()' pois o callback já resolveu.
+        with placeholder_container.container():
+            b64_logo = get_base64_of_bin_file("logo.png")
+            if b64_logo:
+                st.markdown(
+                    f'<div style="display: flex; justify-content: center; margin-bottom: 10px;">'
+                    f'<img src="data:image/png;base64,{b64_logo}" width="220"></div>',
+                    unsafe_allow_html=True
+                )
+            
+            st.markdown('<div class="welcome-text">Monitoração do Espectro - Grandes Eventos 2026</div>', unsafe_allow_html=True)
+            
+            # O SEGREDO: index=None e o placeholder definido
+            st.selectbox(
+                "Escolha o evento", 
+                opcoes_menu, 
+                index=None, 
+                placeholder="Selecione o evento...",
+                key="seletor_central", 
+                label_visibility="collapsed",
+                on_change=ao_selecionar_evento 
+            )
+
+    # Substitui o st.status pelo spinner para não "congelar" a tela
+    if st.session_state.escolha_evento != "Selecione o Evento...":
+        placeholder_container.empty()
+        with st.spinner("🚀 Sincronizando dados..."):
+            time.sleep(0.5)
 
 # --- DASHBOARD ATIVO ---
 else:
@@ -654,7 +657,8 @@ else:
             st.download_button("📥 Exportar para Excel (.xls)", buf.getvalue(), f"Historico_{evento_nome}.xlsx")
 
         gb = GridOptionsBuilder.from_dataframe(df_grid.astype(str))
-        gb.configure_pagination(paginationPageSize=10)
+        # Desativa a paginação para a tabela ficar corrida com barra de rolagem
+        gb.configure_pagination(enabled=False) 
         gb.configure_default_column(resizable=True, filter=True, sortable=True)
         gb.configure_grid_options(domLayout='normal') 
         
@@ -662,7 +666,7 @@ else:
             df_grid.astype(str), 
             gridOptions=gb.build(), 
             theme='streamlit', 
-            height=400, 
+            height=500, # Altura fixa para habilitar a rolagem
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
             use_container_width=True
         )
