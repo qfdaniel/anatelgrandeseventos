@@ -601,16 +601,62 @@ else:
         if not df_f.empty:
             st.markdown("<br>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-            bg_l = dict(paper_bgcolor="rgba(240, 240, 240, 0.8)", plot_bgcolor="rgba(0, 0, 0, 0)", margin=dict(t=40, b=20, l=20, r=20), font=dict(color=AZUL_ANATEL))
+            # Altere esta linha no seu código:
+            bg_l = dict(paper_bgcolor="rgba(240, 240, 240, 0.8)", plot_bgcolor="rgba(0, 0, 0, 0)", margin=dict(t=15, b=15, l=20, r=20), # Margens superior e inferior igualadas em 15
+            font=dict(color=AZUL_ANATEL))
             
             with c1:
-                st.subheader("Emissões por Estação")
-                df_tree = df_f['Estação_Origem'].value_counts().reset_index()
-                df_tree.columns = ['Estação', 'Qtd']
-                df_tree['Label'] = df_tree.apply(lambda x: f"{x['Estação']} ({x['Qtd']})", axis=1)
+                st.subheader("Verificação das Emissões")
                 
-                fig1 = px.treemap(df_tree, path=['Label'], values='Qtd', color_discrete_sequence=PALETA_CUSTOM)
-                fig1.update_layout(bg_l); st.plotly_chart(fig1, use_container_width=True)
+                # --- NOVO GRÁFICO: HISTOGRAMA EMPILHADO (FREQ vs STATUS) ---
+                if not df_f.empty and 'Situação' in df_f.columns:
+                    # Padronização para identificar Concluído vs Pendente
+                    df_f['Status_Simplificado'] = df_f['Situação'].apply(
+                        lambda x: 'Concluído' if 'conclu' in str(x).lower() else 'Pendente'
+                    )
+                    
+                    # Agrupamento para o gráfico
+                    df_hist = df_f.groupby([col_fx, 'Status_Simplificado']).size().reset_index(name='Quantidade')
+                    
+                    fig1 = px.bar(
+                        df_hist, 
+                        x=col_fx, 
+                        y='Quantidade', 
+                        color='Status_Simplificado',
+                        color_discrete_map={'Pendente': '#B8DE29', 'Concluído': '#29AF7F'},
+                        barmode='stack',
+                        text='Quantidade'
+                    )
+                    
+                    fig1.update_layout(
+                        bg_l, 
+                        showlegend=True, 
+                        xaxis_title=None, 
+                        yaxis_title=None,
+                        margin=dict(t=15, b=15, l=20, r=20), 
+                        legend=dict(
+                            orientation="h",
+                            yanchor="top", 
+                            y=-0.1,              # Reduzimos o espaço (aproximamos do gráfico)
+                            xanchor="center", 
+                            x=0.5,
+                            title=None
+                        )
+                    )
+                    # Força o texto das barras a aparecer apenas se houver valor
+                    fig1.update_traces(textposition='inside', texttemplate='%{text}')
+                    
+                    st.plotly_chart(fig1, use_container_width=True)
+                else:
+                    st.info("Dados insuficientes para gerar a verificação.")
+
+                # --- GRÁFICO ANTERIOR (COMENTADO) ---
+                # st.subheader("Emissões por Estação")
+                # df_tree = df_f['Estação_Origem'].value_counts().reset_index()
+                # df_tree.columns = ['Estação', 'Qtd']
+                # df_tree['Label'] = df_tree.apply(lambda x: f"{x['Estação']} ({x['Qtd']})", axis=1)
+                # fig1 = px.treemap(df_tree, path=['Label'], values='Qtd', color_discrete_sequence=PALETA_CUSTOM)
+                # fig1.update_layout(bg_l); st.plotly_chart(fig1, use_container_width=True)
             with c2:
                 st.subheader("Emissões por Faixa")
                 fig2 = px.pie(df_f, names=col_fx, hole=0.4, color_discrete_sequence=PALETA_CUSTOM)
