@@ -418,7 +418,7 @@ def carregar_dados_base(nome_planilha):
 
 # --- FUNÇÃO LIMPAR FILTROS ---
 def limpar_filtros():
-    keys_to_clear = ["sb_data", "sb_est", "sb_fx", "sb_fr", "sb_int", "sb_lic", "sb_sit", "sb_ute"]
+    keys_to_clear = ["sb_data", "sb_est", "sb_fx", "sb_fr", "sb_aut", "sb_int", "sb_lic", "sb_sit", "sb_ute"]
     for key in keys_to_clear:
         if key in st.session_state:
             del st.session_state[key]
@@ -515,6 +515,12 @@ else:
                     opts_fr = ["Todas"] + get_clean_unique(df_f, 'Frequência (MHz)')
                     f_fr = st.selectbox("Frequência (MHz):", opts_fr, key="sb_fr")
                     if f_fr != "Todas": df_f = df_f[df_f['Frequência (MHz)'].astype(str) == f_fr]
+                
+                if 'Autorizado?' in df_f.columns:
+                    opts_aut = ["Todas"] + get_clean_unique(df_f, 'Autorizado?')
+                    f_aut = st.selectbox("Autorizado?:", opts_aut, key="sb_aut")
+                    if f_aut != "Todas": 
+                        df_f = df_f[df_f['Autorizado?'].astype(str) == f_aut]
                 
                 if 'Interferente?' in df_f.columns:
                     f_int = st.selectbox("Interferente?:", ["Todas", "Sim", "Não"], key="sb_int")
