@@ -576,7 +576,7 @@ else:
         k1, k2, k3, k4, k5, k6 = st.columns(6)
         
         pend = (df_f['Situação'].str.contains("Pendente", na=False)).sum() if 'Situação' in df_f.columns else 0
-        nao_licenciadas = (df_f['Autorizado?'].str.upper().str.contains("NÃO", na=False)).sum() if 'Autorizado?' in df_f.columns else 0
+        nao_licenciadas = (df_f['Autorizado?'].str.upper().str.strip() == "NÃO").sum() if 'Autorizado?' in df_f.columns else 0
         
         g_verde = "linear-gradient(135deg, #4CAF50 0%, #9CCC65 100%)"
         g_amarelo = "linear-gradient(135deg, #FFCC00, #FBC02D)"
@@ -749,3 +749,4 @@ else:
             )
 
             st.plotly_chart(fig_map, use_container_width=True)
+
