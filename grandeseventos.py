@@ -528,10 +528,10 @@ else:
                         val_int = "SIM" if f_int == "Sim" else "NÃO"
                         df_f = df_f[df_f['Interferente?'].astype(str).str.upper() == val_int]
                 
-                if 'Licenciada?' in df_f.columns:
-                    opts_lic = ["Todas"] + get_clean_unique(df_f, 'Licenciada?')
+                if 'Autorizado?' in df_f.columns:
+                    opts_lic = ["Todas"] + get_clean_unique(df_f, 'Autorizado?')
                     f_lic = st.selectbox("Licenciamento:", opts_lic, key="sb_lic")
-                    if f_lic != "Todas": df_f = df_f[df_f['Licenciada?'].astype(str) == f_lic]
+                    if f_lic != "Todas": df_f = df_f[df_f['Autorizado?'].astype(str) == f_lic]
                 
                 if 'Situação' in df_f.columns:
                     opts_sit = ["Todas"] + get_clean_unique(df_f, 'Situação')
@@ -576,7 +576,7 @@ else:
         k1, k2, k3, k4, k5, k6 = st.columns(6)
         
         pend = (df_f['Situação'].str.contains("Pendente", na=False)).sum() if 'Situação' in df_f.columns else 0
-        nao_licenciadas = (df_f['Licenciada?'].str.upper().str.contains("NÃO", na=False)).sum() if 'Licenciada?' in df_f.columns else 0
+        nao_licenciadas = (df_f['Autorizado?'].str.upper().str.contains("NÃO", na=False)).sum() if 'Autorizado?' in df_f.columns else 0
         
         g_verde = "linear-gradient(135deg, #4CAF50 0%, #9CCC65 100%)"
         g_amarelo = "linear-gradient(135deg, #FFCC00, #FBC02D)"
@@ -747,4 +747,5 @@ else:
                 margin={"r":0,"t":0,"l":0,"b":0}, 
                 map_center={"lat": centro_lat, "lon": centro_lon}
             )
+
             st.plotly_chart(fig_map, use_container_width=True)
