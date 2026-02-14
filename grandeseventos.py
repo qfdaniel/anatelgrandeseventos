@@ -587,7 +587,7 @@ else:
             ("Emissões verificadas", len(df_f), g_verde, "Total de emissões verificadas, conforme os filtros aplicados (padrão: 'todas')."), 
             ("Solicitações UTE", ute_total, g_azul, "Total de frequências solicitadas para Uso Temporário do Espectro no evento"), 
             ("Emissões pendentes", pend, g_amarelo, "Total de emissões aguardando alguma identificação/verificação (não afetado por filtros)."),
-            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas (Total de emissões não licenciadas considerando os filtros aplicados)."), 
+            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas."), 
             ("BSR (Jammers)", jam, g_vermelho, "Contagem total de BSRs/Jammers identificados."), 
             ("ERBs Fake", erb, g_vermelho, "Contagem total de ERBs Fake identificadas.")
         ]
@@ -749,4 +749,5 @@ else:
             )
 
             st.plotly_chart(fig_map, use_container_width=True)
+
 
