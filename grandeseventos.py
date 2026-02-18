@@ -549,12 +549,29 @@ else:
                 c_freq = next((c for c in df_f.columns if "Frequência (MHz)" in c), None)
                 c_bw = next((c for c in df_f.columns if "Largura" in c or "BW" in c), None)
                 c_id = next((c for c in df_f.columns if "Designação" in c or "Identificação" in c), None)
+                
                 if c_freq and c_bw and c_id and not df_f.empty:
+                    # Copia apenas as colunas necessárias
                     df_app = df_f[[c_freq, c_bw, c_id]].copy()
-                    df_app.columns = ["Frequência (MHz)", "Largura (KHz)", "Identificação"]
+                    
+                    # 1. Renomeia as colunas para o padrão exigido
+                    df_app.columns = ["Frequência (MHz)", "Largura de Banda (kHz)", "Identificação"]
+                    
+                    # 2. Converte para NÚMERO (float), tratando vírgulas se houver
+                    for col in ["Frequência (MHz)", "Largura de Banda (kHz)"]:
+                        df_app[col] = (
+                            df_app[col]
+                            .astype(str)
+                            .str.replace(',', '.')  # Troca vírgula por ponto
+                            .apply(pd.to_numeric, errors='coerce') # Converte para número real
+                        )
+
                     buffer_app = io.BytesIO()
+                    
+                    # Gera o Excel sem o índice
                     with pd.ExcelWriter(buffer_app, engine='xlsxwriter') as writer:
                         df_app.to_excel(writer, index=False)
+                        
                     st.download_button(
                         label="📱 Gerar arquivo AppAnálise",
                         data=buffer_app.getvalue(),
@@ -562,7 +579,9 @@ else:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True
                     )
-            except: pass
+            except Exception as e:
+                # Opcional: Mostra erro na tela se falhar (ajuda no debug)
+                st.error(f"Erro ao gerar arquivo: {e}")
 
             st.markdown("---")
             if st.button("Limpar Filtros", on_click=limpar_filtros, use_container_width=True):
@@ -749,5 +768,6 @@ else:
             )
 
             st.plotly_chart(fig_map, use_container_width=True)
+
 
 
