@@ -409,10 +409,15 @@ def carregar_dados_base(nome_planilha):
         df_total = pd.concat(lista_dfs, ignore_index=True, sort=False).fillna("") if lista_dfs else pd.DataFrame()
         df_coords = pd.DataFrame(coord_data)
         
-        try: ute_total = len(planilha.worksheet("Tabela UTE").get_all_values()) - 1
-        except: ute_total = 0
+        try: 
+            raw_ute = planilha.worksheet("Tabela UTE").get_all_values()
+            ute_total = max(0, len(raw_ute) - 1)
+            df_ute = pd.DataFrame(raw_ute) # Salva a tabela UTE em um DataFrame
+        except: 
+            ute_total = 0
+            df_ute = pd.DataFrame()
             
-        return df_total, jam, erb, ute_total, df_coords
+        return df_total, jam, erb, ute_total, df_coords, df_ute
     except Exception:
         return None
 
@@ -489,7 +494,7 @@ else:
         st.subheader("Filtros")
 
     if dados_base:
-        df_full, jam, erb, ute_total, df_coords = dados_base
+        df_full, jam, erb, ute_total, df_coords, df_ute = dados_base
         df_f = df_full.copy()
         
         def get_clean_unique(df, col):
@@ -573,10 +578,92 @@ else:
                         df_app.to_excel(writer, index=False)
                         
                     st.download_button(
-                        label="📱 Gerar arquivo AppAnálise",
+                        label="⬇️ Gerar arquivo AppAnálise",
                         data=buffer_app.getvalue(),
                         file_name=f"AppAnalise_{evento_nome}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True
+                    )
+                   # --- GERAR OVERLAY RFEYE (CONSOLIDADO + UTE) ---
+                    
+                    # 1. Prepara os dados do Histórico Consolidado (df_app)
+                    df_rfeye_1 = pd.DataFrame({
+                        'lat': "0.0000",
+                        'lon': "0.0000",
+                        'freq_hz': (df_app['Frequência (MHz)'].fillna(0) * 1000000).astype(int),
+                        'bw_hz': (df_app['Largura de Banda (kHz)'].fillna(0) * 1000).astype(int),
+                        'nome': df_app['Identificação'].fillna("Desconhecido")
+                    })
+                    df_rfeye_1 = df_rfeye_1[df_rfeye_1['freq_hz'] > 0]
+                    
+                    # 2. Prepara os dados da Tabela UTE
+                    df_rfeye_2 = pd.DataFrame()
+                    # Verifica se a tabela UTE existe e tem pelo menos até a coluna F (índice 5)
+                    if not df_ute.empty and len(df_ute.columns) >= 6:
+                        # Pula a linha 0 (cabeçalho da planilha)
+                        df_ute_data = df_ute.iloc[1:].copy()
+                        
+                        # Coluna E (índice 4): Frequência em MHz -> converte para Hz
+                        freq_ute = df_ute_data.iloc[:, 4].astype(str).str.replace(',', '.').apply(pd.to_numeric, errors='coerce').fillna(0)
+                        
+                        # Coluna F (índice 5): Largura em kHz -> converte para Hz
+                        bw_ute = df_ute_data.iloc[:, 5].astype(str).str.replace(',', '.').apply(pd.to_numeric, errors='coerce').fillna(0)
+                        
+                        # Coluna A (índice 0): Nome -> adiciona o prefixo [UTE]
+                        nome_ute = "[UTE] " + df_ute_data.iloc[:, 0].astype(str).replace("", "Desconhecido")
+                        
+                        df_rfeye_2 = pd.DataFrame({
+                            'lat': "0.0000",
+                            'lon': "0.0000",
+                            'freq_hz': (freq_ute * 1000000).astype(int),
+                            'bw_hz': (bw_ute * 1000).astype(int),
+                            'nome': nome_ute
+                        })
+                        # Remove linhas vazias ou sem frequência válida na UTE
+                        df_rfeye_2 = df_rfeye_2[df_rfeye_2['freq_hz'] > 0]
+                        
+                    # 3. Junta as duas tabelas e mescla frequências iguais
+                    df_rfeye_1['origem'] = 1 # Marcador de prioridade 1 (Histórico Consolidado)
+                    
+                    if not df_rfeye_2.empty:
+                        df_rfeye_2['origem'] = 2 # Marcador de prioridade 2 (UTE)
+                        df_rfeye_final = pd.concat([df_rfeye_1, df_rfeye_2], ignore_index=True)
+                    else:
+                        df_rfeye_final = df_rfeye_1.copy()
+                    
+                    if not df_rfeye_final.empty:
+                        # Função para mesclar linhas com a mesma frequência
+                        def mesclar_dados(g):
+                            # Ordena pela origem, garantindo que o Histórico (1) venha antes da UTE (2)
+                            g = g.sort_values('origem')
+                            # Pega a largura de banda do primeiro item (prioriza o Histórico)
+                            bw = g['bw_hz'].iloc[0]
+                            # Junta os nomes com " - ", removendo possíveis nomes exatos duplicados
+                            nomes = g['nome'].drop_duplicates().tolist()
+                            nome_mesclado = " - ".join(nomes)
+                            
+                            return pd.Series({
+                                'lat': "0.0000",
+                                'lon': "0.0000",
+                                'bw_hz': bw,
+                                'nome': nome_mesclado
+                            })
+                        
+                        # Aplica o agrupamento por frequência
+                        df_rfeye_final = df_rfeye_final.groupby('freq_hz').apply(mesclar_dados).reset_index()
+                        
+                        # Reordena as colunas para o padrão do RFeye e ordena do menor para a maior frequência
+                        df_rfeye_final = df_rfeye_final[['lat', 'lon', 'freq_hz', 'bw_hz', 'nome']]
+                        df_rfeye_final = df_rfeye_final.sort_values(by='freq_hz', ascending=True)
+                    
+                    # 4. Gera o CSV
+                    csv_rfeye = df_rfeye_final.to_csv(index=False, header=False).encode('utf-8')
+                    
+                    st.download_button(
+                        label="⬇️ Gerar Overlay RFeye",
+                        data=csv_rfeye,
+                        file_name=f"Overlay_RFeye_{evento_nome}.csv",
+                        mime="text/csv",
                         use_container_width=True
                     )
             except Exception as e:
@@ -671,6 +758,9 @@ else:
                     # Força o texto das barras a aparecer apenas se houver valor
                     fig1.update_traces(textposition='inside', texttemplate='%{text}')
                     
+                    # Remove a escala Y (linha, números e título à esquerda)
+                    fig1.update_yaxes(visible=False)
+                    
                     st.plotly_chart(fig1, use_container_width=True)
                 else:
                     st.info("Dados insuficientes para gerar a verificação.")
@@ -685,7 +775,7 @@ else:
             with c2:
                 st.subheader("Emissões por Faixa")
                 fig2 = px.pie(df_f, names=col_fx, hole=0.4, color_discrete_sequence=PALETA_CUSTOM)
-                fig2.update_traces(textposition='inside', textinfo='label+percent')
+                fig2.update_traces(textposition='inside', texttemplate='%{label}<br>%{percent:.1%} (%{value})')
                 fig2.update_layout(bg_l, showlegend=False); st.plotly_chart(fig2, use_container_width=True)
             with c3:
                 st.subheader("Emissões por Tipo")
@@ -710,6 +800,10 @@ else:
         # Remove colunas indesejadas explícitas primeiro
         cols_drop = ["Alguém mais ciente?", "Ocorrência (Observações)", "Ocorrência (observações)", "Ocorrência (obsevações)"]
         df_grid = df_f.drop(columns=[c for c in cols_drop if c in df_f.columns])
+        
+        # Renomeia a coluna "Estação" (que vem da planilha original) para a visualização na tabela
+        if 'Estação' in df_grid.columns:
+            df_grid = df_grid.rename(columns={'Estação': 'Estação/Local'})
         
         # Ajusta valores de UTE
         if 'UTE?' in df_grid.columns:
@@ -768,6 +862,3 @@ else:
             )
 
             st.plotly_chart(fig_map, use_container_width=True)
-
-
-
