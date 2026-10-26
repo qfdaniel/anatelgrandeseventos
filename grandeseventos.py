@@ -417,20 +417,24 @@ def carregar_dados_base(nome_planilha):
             df_ute = pd.DataFrame()
 
         # --- NOVO: CARREGA EQUIPAMENTOS ETIQUETADOS (T&T) DA ABA ABORDAGEM (AD:AL) ---
+        cols_padrao_tt = ["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"]
         try:
             raw_tt = planilha.worksheet("Abordagem").get("AD1:AL")
             if raw_tt and len(raw_tt) > 1:
-                headers_tt = raw_tt[0]
-                rows_tt = [
-                    r + [""] * (len(headers_tt) - len(r))
-                    for r in raw_tt[1:]
-                    if any(str(c).strip() != "" for c in r)
-                ]
-                df_tt = pd.DataFrame(rows_tt, columns=headers_tt) if rows_tt else pd.DataFrame(columns=headers_tt)
+                headers_tt = [str(h).strip() if str(h).strip() != "" else f"Col_{i}" for i, h in enumerate(raw_tt[0])]
+                if any(str(h).strip() != "" for h in raw_tt[0]):
+                    rows_tt = [
+                        r + [""] * (len(headers_tt) - len(r))
+                        for r in raw_tt[1:]
+                        if any(str(c).strip() != "" for c in r)
+                    ]
+                    df_tt = pd.DataFrame(rows_tt, columns=headers_tt) if rows_tt else pd.DataFrame(columns=headers_tt)
+                else:
+                    df_tt = pd.DataFrame(columns=cols_padrao_tt)
             else:
-                df_tt = pd.DataFrame(columns=["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"])
+                df_tt = pd.DataFrame(columns=cols_padrao_tt)
         except:
-            df_tt = pd.DataFrame(columns=["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"])
+            df_tt = pd.DataFrame(columns=cols_padrao_tt)
             
         return df_total, jam, erb, ute_total, df_coords, df_ute, df_tt
     except Exception:
