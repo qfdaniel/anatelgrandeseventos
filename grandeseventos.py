@@ -830,9 +830,7 @@ else:
         
         # --- CORREÇÃO: CORTAR COLUNAS APÓS "Situação" ---
         if 'Situação' in df_grid.columns:
-            # Encontra o índice numérico da coluna Situação
             idx_situ = df_grid.columns.get_loc('Situação')
-            # Fatia o dataframe: pega todas as linhas, e colunas do início (0) até Situação (idx_situ + 1)
             df_grid = df_grid.iloc[:, :idx_situ + 1]
 
         with col_b:
@@ -840,59 +838,63 @@ else:
             with pd.ExcelWriter(buf, engine='xlsxwriter') as w: df_grid.to_excel(w, index=False)
             st.download_button("📥 Exportar para Excel (.xls)", buf.getvalue(), f"Historico_{evento_nome}.xlsx")
 
-        gb = GridOptionsBuilder.from_dataframe(df_grid.astype(str))
-        # Desativa a paginação para a tabela ficar corrida com barra de rolagem
-        gb.configure_pagination(enabled=False) 
-        gb.configure_default_column(resizable=True, filter=True, sortable=True)
-        gb.configure_grid_options(domLayout='normal') 
-        
-        AgGrid(
-            df_grid.astype(str), 
-            gridOptions=gb.build(), 
-            theme='streamlit', 
-            height=500, # Altura fixa para habilitar a rolagem
-            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
-            use_container_width=True
-        )
-        # --- NOVA TABELA: EQUIPAMENTOS ETIQUETADOS (T&T) ---
-        st.markdown("---")
-        col_tt_t, col_tt_b = st.columns([0.8, 0.2])
-        with col_tt_t:
-            st.subheader("Equipamentos Etiquetados (T&T)")
-
-        df_grid_tt = df_tt.copy()
-        if 'UTE?' in df_grid_tt.columns:
-            df_grid_tt['UTE?'] = (
-                df_grid_tt['UTE?']
-                .astype(str).str.upper().str.strip()
-                .map({'TRUE': 'Sim', 'FALSE': 'Não', 'SIM': 'Sim', 'NÃO': 'Não', '': ''})
-                .fillna(df_grid_tt['UTE?'])
+        if not df_grid.empty and len(df_grid.columns) > 0:
+            gb = GridOptionsBuilder.from_dataframe(df_grid.astype(str))
+            gb.configure_pagination(enabled=False) 
+            gb.configure_default_column(resizable=True, filter=True, sortable=True)
+            gb.configure_grid_options(domLayout='normal') 
+            
+            AgGrid(
+                df_grid.astype(str), 
+                gridOptions=gb.build(), 
+                theme='streamlit', 
+                height=500,
+                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+                use_container_width=True
             )
+        else:
+            st.info("Nenhuma emissão encontrada para os filtros selecionados.")
 
-        with col_tt_b:
-            buf_tt = io.BytesIO()
-            with pd.ExcelWriter(buf_tt, engine='xlsxwriter') as w_tt:
-                df_grid_tt.to_excel(w_tt, index=False)
-            st.download_button(
-                "📥 Exportar para Excel (.xls)",
-                buf_tt.getvalue(),
-                f"Equipamentos_TT_{evento_nome}.xlsx",
-                key="btn_export_tt"
-            )
+        # --- NOVA TABELA: EQUIPAMENTOS ETIQUETADOS (T&T) (SÓ EXIBE SE HOUVER DADOS) ---
+        if not df_tt.empty and len(df_tt.columns) > 0:
+            st.markdown("---")
+            col_tt_t, col_tt_b = st.columns([0.8, 0.2])
+            with col_tt_t:
+                st.subheader("Equipamentos Etiquetados (T&T)")
 
-        gb_tt = GridOptionsBuilder.from_dataframe(df_grid_tt.astype(str))
-        gb_tt.configure_pagination(enabled=False)
-        gb_tt.configure_default_column(resizable=True, filter=True, sortable=True)
-        gb_tt.configure_grid_options(domLayout='normal')
+            df_grid_tt = df_tt.copy()
+            if 'UTE?' in df_grid_tt.columns:
+                df_grid_tt['UTE?'] = (
+                    df_grid_tt['UTE?']
+                    .astype(str).str.upper().str.strip()
+                    .map({'TRUE': 'Sim', 'FALSE': 'Não', 'SIM': 'Sim', 'NÃO': 'Não', '': ''})
+                    .fillna(df_grid_tt['UTE?'])
+                )
 
-        AgGrid(
-            df_grid_tt.astype(str),
-            gridOptions=gb_tt.build(),
-            theme='streamlit',
-            height=500,
-            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
-            use_container_width=True,
-            key="aggrid_tt"
+            with col_tt_b:
+                buf_tt = io.BytesIO()
+                with pd.ExcelWriter(buf_tt, engine='xlsxwriter') as w_tt:
+                    df_grid_tt.to_excel(w_tt, index=False)
+                st.download_button(
+                    "📥 Exportar para Excel (.xls)",
+                    buf_tt.getvalue(),
+                    f"Equipamentos_TT_{evento_nome}.xlsx",
+                    key="btn_export_tt"
+                )
+
+            gb_tt = GridOptionsBuilder.from_dataframe(df_grid_tt.astype(str))
+            gb_tt.configure_pagination(enabled=False)
+            gb_tt.configure_default_column(resizable=True, filter=True, sortable=True)
+            gb_tt.configure_grid_options(domLayout='normal')
+
+            AgGrid(
+                df_grid_tt.astype(str),
+                gridOptions=gb_tt.build(),
+                theme='streamlit',
+                height=500,
+                columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+                use_container_width=True,
+                key="aggrid_tt"
         )
         AgGrid(
             df_grid.astype(str), 
