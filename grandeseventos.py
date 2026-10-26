@@ -509,7 +509,6 @@ else:
         st.subheader("Filtros")
 
     if dados_base:
-        if dados_base:
         df_full, jam, erb, ute_total, df_coords, df_ute, df_tt = dados_base
         df_f = df_full.copy()
         
