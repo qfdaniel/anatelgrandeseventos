@@ -509,6 +509,7 @@ else:
         st.subheader("Filtros")
 
     if dados_base:
+        if dados_base:
         df_full, jam, erb, ute_total, df_coords, df_ute, df_tt = dados_base
         df_f = df_full.copy()
         
@@ -889,6 +890,14 @@ else:
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
             use_container_width=True,
             key="aggrid_tt"
+        )
+        AgGrid(
+            df_grid.astype(str), 
+            gridOptions=gb.build(), 
+            theme='streamlit', 
+            height=500, # Altura fixa para habilitar a rolagem
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+            use_container_width=True
         )
         if not df_coords.empty:
             st.subheader("Localização das Estações")
