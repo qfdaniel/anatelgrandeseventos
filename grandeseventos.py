@@ -408,7 +408,6 @@ def carregar_dados_base(nome_planilha):
                         
         df_total = pd.concat(lista_dfs, ignore_index=True, sort=False).fillna("") if lista_dfs else pd.DataFrame()
         df_coords = pd.DataFrame(coord_data)
-        
         try: 
             raw_ute = planilha.worksheet("Tabela UTE").get_all_values()
             ute_total = max(0, len(raw_ute) - 1)
@@ -416,8 +415,24 @@ def carregar_dados_base(nome_planilha):
         except: 
             ute_total = 0
             df_ute = pd.DataFrame()
+
+        # --- NOVO: CARREGA EQUIPAMENTOS ETIQUETADOS (T&T) DA ABA ABORDAGEM (AD:AL) ---
+        try:
+            raw_tt = planilha.worksheet("Abordagem").get("AD1:AL")
+            if raw_tt and len(raw_tt) > 1:
+                headers_tt = raw_tt[0]
+                rows_tt = [
+                    r + [""] * (len(headers_tt) - len(r))
+                    for r in raw_tt[1:]
+                    if any(str(c).strip() != "" for c in r)
+                ]
+                df_tt = pd.DataFrame(rows_tt, columns=headers_tt) if rows_tt else pd.DataFrame(columns=headers_tt)
+            else:
+                df_tt = pd.DataFrame(columns=["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"])
+        except:
+            df_tt = pd.DataFrame(columns=["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"])
             
-        return df_total, jam, erb, ute_total, df_coords, df_ute
+        return df_total, jam, erb, ute_total, df_coords, df_ute, df_tt
     except Exception:
         return None
 
@@ -494,7 +509,7 @@ else:
         st.subheader("Filtros")
 
     if dados_base:
-        df_full, jam, erb, ute_total, df_coords, df_ute = dados_base
+        df_full, jam, erb, ute_total, df_coords, df_ute, df_tt = dados_base
         df_f = df_full.copy()
         
         def get_clean_unique(df, col):
@@ -835,7 +850,46 @@ else:
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
             use_container_width=True
         )
+        # --- NOVA TABELA: EQUIPAMENTOS ETIQUETADOS (T&T) ---
+        st.markdown("---")
+        col_tt_t, col_tt_b = st.columns([0.8, 0.2])
+        with col_tt_t:
+            st.subheader("Equipamentos Etiquetados (T&T)")
 
+        df_grid_tt = df_tt.copy()
+        if 'UTE?' in df_grid_tt.columns:
+            df_grid_tt['UTE?'] = (
+                df_grid_tt['UTE?']
+                .astype(str).str.upper().str.strip()
+                .map({'TRUE': 'Sim', 'FALSE': 'Não', 'SIM': 'Sim', 'NÃO': 'Não', '': ''})
+                .fillna(df_grid_tt['UTE?'])
+            )
+
+        with col_tt_b:
+            buf_tt = io.BytesIO()
+            with pd.ExcelWriter(buf_tt, engine='xlsxwriter') as w_tt:
+                df_grid_tt.to_excel(w_tt, index=False)
+            st.download_button(
+                "📥 Exportar para Excel (.xls)",
+                buf_tt.getvalue(),
+                f"Equipamentos_TT_{evento_nome}.xlsx",
+                key="btn_export_tt"
+            )
+
+        gb_tt = GridOptionsBuilder.from_dataframe(df_grid_tt.astype(str))
+        gb_tt.configure_pagination(enabled=False)
+        gb_tt.configure_default_column(resizable=True, filter=True, sortable=True)
+        gb_tt.configure_grid_options(domLayout='normal')
+
+        AgGrid(
+            df_grid_tt.astype(str),
+            gridOptions=gb_tt.build(),
+            theme='streamlit',
+            height=500,
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
+            use_container_width=True,
+            key="aggrid_tt"
+        )
         if not df_coords.empty:
             st.subheader("Localização das Estações")
             centro_lat = df_coords['lat'].mean()
