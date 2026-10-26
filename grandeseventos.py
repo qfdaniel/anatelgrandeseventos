@@ -416,10 +416,10 @@ def carregar_dados_base(nome_planilha):
             ute_total = 0
             df_ute = pd.DataFrame()
 
-        # --- NOVO: CARREGA EQUIPAMENTOS ETIQUETADOS (T&T) DA ABA ABORDAGEM (AD:AL) ---
-        cols_padrao_tt = ["Entidade", "País", "Data", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"]
+        # --- CARREGA EQUIPAMENTOS ETIQUETADOS (T&T) DA ABA ABORDAGEM (AD:AM) ---
+        cols_padrao_tt = ["Entidade", "País", "Data", "Hora", "Contato", "Equipamento", "Qtde", "Freq", "UTE?", "Etiqueta"]
         try:
-            raw_tt = planilha.worksheet("Abordagem").get("AD1:AL")
+            raw_tt = planilha.worksheet("Abordagem").get("AD1:AM")
             if raw_tt and len(raw_tt) > 1:
                 headers_tt = [str(h).strip() if str(h).strip() != "" else f"Col_{i}" for i, h in enumerate(raw_tt[0])]
                 if any(str(h).strip() != "" for h in raw_tt[0]):
