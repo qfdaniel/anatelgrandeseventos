@@ -830,7 +830,9 @@ else:
         
         # --- CORREÇÃO: CORTAR COLUNAS APÓS "Situação" ---
         if 'Situação' in df_grid.columns:
+            # Encontra o índice numérico da coluna Situação
             idx_situ = df_grid.columns.get_loc('Situação')
+            # Fatia o dataframe: pega todas as linhas, e colunas do início (0) até Situação (idx_situ + 1)
             df_grid = df_grid.iloc[:, :idx_situ + 1]
 
         with col_b:
@@ -840,6 +842,7 @@ else:
 
         if not df_grid.empty and len(df_grid.columns) > 0:
             gb = GridOptionsBuilder.from_dataframe(df_grid.astype(str))
+            # Desativa a paginação para a tabela ficar corrida com barra de rolagem
             gb.configure_pagination(enabled=False) 
             gb.configure_default_column(resizable=True, filter=True, sortable=True)
             gb.configure_grid_options(domLayout='normal') 
@@ -848,7 +851,7 @@ else:
                 df_grid.astype(str), 
                 gridOptions=gb.build(), 
                 theme='streamlit', 
-                height=500,
+                height=500, # Altura fixa para habilitar a rolagem
                 columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
                 use_container_width=True
             )
@@ -895,15 +898,8 @@ else:
                 columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
                 use_container_width=True,
                 key="aggrid_tt"
-        )
-        AgGrid(
-            df_grid.astype(str), 
-            gridOptions=gb.build(), 
-            theme='streamlit', 
-            height=500, # Altura fixa para habilitar a rolagem
-            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW,
-            use_container_width=True
-        )
+            )
+
         if not df_coords.empty:
             st.subheader("Localização das Estações")
             centro_lat = df_coords['lat'].mean()
