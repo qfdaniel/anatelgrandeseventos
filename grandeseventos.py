@@ -252,7 +252,7 @@ st.markdown(f"""
         font-size: 2.7em; 
         line-height: 1; text-shadow: none; color: #000000 !important; 
     }}
-    
+    .kpi-preto .kpi-value {{ color: #FFFFFF !important; }}
     .info-icon-container {{ position: absolute; bottom: 8px; right: 8px; }}
     .info-icon {{
         display: inline-block; width: 16px; height: 16px; line-height: 16px;
@@ -707,20 +707,53 @@ else:
         g_amarelo = "linear-gradient(135deg, #FFCC00, #FBC02D)"
         g_azul = "linear-gradient(to bottom, #1a3f8a, #527ac9)"
         g_vermelho = "linear-gradient(135deg, #DF1B1D 0%, #E85C5D 100%)"
+        g_preto = "linear-gradient(135deg, #111111 0%, #2b2b2b 100%)"
+
+        # Converte jam e erb com segurança para inteiro para poder somar
+        try: jam_int = int(float(str(jam).replace(',', '.').strip() or 0))
+        except: jam_int = 0
+        try: erb_int = int(float(str(erb).replace(',', '.').strip() or 0))
+        except: erb_int = 0
+
+        # Verifica se há dados de T&T e calcula o somatório da coluna Qtde
+        tem_tt = not df_tt.empty and len(df_tt.columns) > 0
+        total_tt = 0
+        if tem_tt:
+            col_qtde = next((c for c in df_tt.columns if "qtd" in str(c).lower() or "quant" in str(c).lower()), None)
+            if col_qtde:
+                total_tt = int(
+                    df_tt[col_qtde]
+                    .astype(str)
+                    .str.replace(',', '.')
+                    .apply(pd.to_numeric, errors='coerce')
+                    .fillna(0)
+                    .sum()
+                )
+            else:
+                total_tt = len(df_tt)
+
+        if tem_tt:
+            ultimos_kpis = [
+                ("BSR e ERB fake", jam_int + erb_int, g_vermelho, f"Soma total de BSRs/Jammers ({jam_int}) e ERBs Fake ({erb_int}) identificados.", ""),
+                ("Equip. Etiquetados", total_tt, g_preto, "Somatório da quantidade de equipamentos etiquetados (T&T).", "kpi-preto")
+            ]
+        else:
+            ultimos_kpis = [
+                ("BSR (Jammers)", jam, g_vermelho, "Contagem total de BSRs/Jammers identificados.", ""), 
+                ("ERBs Fake", erb, g_vermelho, "Contagem total de ERBs Fake identificadas.", "")
+            ]
 
         metrics = [
-            ("Emissões verificadas", len(df_f), g_verde, "Total de emissões verificadas, conforme os filtros aplicados (padrão: 'todas')."), 
-            ("Solicitações UTE", ute_total, g_azul, "Total de frequências solicitadas para Uso Temporário do Espectro no evento"), 
-            ("Emissões pendentes", pend, g_amarelo, "Total de emissões aguardando alguma identificação/verificação (não afetado por filtros)."),
-            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas."), 
-            ("BSR (Jammers)", jam, g_vermelho, "Contagem total de BSRs/Jammers identificados."), 
-            ("ERBs Fake", erb, g_vermelho, "Contagem total de ERBs Fake identificadas.")
-        ]
+            ("Emissões verificadas", len(df_f), g_verde, "Total de emissões verificadas, conforme os filtros aplicados (padrão: 'todas').", ""), 
+            ("Solicitações UTE", ute_total, g_azul, "Total de frequências solicitadas para Uso Temporário do Espectro no evento", ""), 
+            ("Emissões pendentes", pend, g_amarelo, "Total de emissões aguardando alguma identificação/verificação (não afetado por filtros).", ""),
+            ("Não licenciadas", nao_licenciadas, g_vermelho, "Total de emissões 'Não' licenciadas.", ""),
+        ] + ultimos_kpis
         
-        for i, (lab, val, grad, tooltip) in enumerate(metrics):
+        for i, (lab, val, grad, tooltip, extra_cls) in enumerate(metrics):
             with [k1,k2,k3,k4,k5,k6][i]:
                 st.markdown(f'''
-                <div class="kpi-box" style="background:{grad}">
+                <div class="kpi-box {extra_cls}" style="background:{grad}">
                     <div class="info-icon-container">
                         <span class="info-icon">i</span>
                         <span class="tooltip-text">{tooltip}</span>
